@@ -2,15 +2,15 @@
 (require 'gh-issues)
 (require 'ox-gfm)
 
-(defvar org2gibb-user "lujun9972"
+(defvar org2issue-user "lujun9972"
   "")
 
-(defvar org2gibb-blog-repo "lujun9972.github.com"
+(defvar org2issue-blog-repo "lujun9972.github.com"
   "")
 
-(defvar org2gibb-api (gh-issues-api "api")
+(defvar org2issue-api (gh-issues-api "api")
   "")
-(defun org2gibb--read-org-option (option)
+(defun org2issue--read-org-option (option)
   "Read option value of org file opened in current buffer.
 e.g:
 #+TITLE: this is title
@@ -22,25 +22,25 @@ will return \"this is title\" if OPTION is \"TITLE\""
       (when (re-search-forward match-regexp nil t)
         (match-string-no-properties 2 nil)))))
 
-(defun org2gibb--get-title ()
+(defun org2issue--get-title ()
   "Get the title of org file."
-  (or (org2gibb--read-org-option "TITLE")
+  (or (org2issue--read-org-option "TITLE")
       (file-name-sans-extension (buffer-name))))
 
-(defun org2gibb--get-tags ()
+(defun org2issue--get-tags ()
   ""
-  (let ((tags (org2gibb--read-org-option "TAGS")))
+  (let ((tags (org2issue--read-org-option "TAGS")))
     (apply #'vector (split-string tags))))
 
 (defun org2gibb ()
   (interactive)
-  (let* ((tags (org2gibb--get-tags))
-         (title (org2gibb--get-title))
+  (let* ((tags (org2issue--get-tags))
+         (title (org2issue--get-title))
          (body (org-export-as 'gfm))
          (issue (make-instance 'gh-issues-issue
                                :title title
                                :body body
                                :labels tags)))
-    (gh-issues-issue-new org2gibb-api org2gibb-user org2gibb-blog-repo issue)))
+    (gh-issues-issue-new org2issue-api org2issue-user org2issue-blog-repo issue)))
 
-(provide 'org2gibb)
+(provide 'org2issue)
