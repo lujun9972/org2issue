@@ -8,7 +8,7 @@
 (defvar org2gibb-blog-repo "lujun9972.github.com"
   "")
 
-(defvar org2gibb-api (gh-issues-api)
+(defvar org2gibb-api (gh-issues-api "api")
   "")
 (defun org2gibb--read-org-option (option)
   "Read option value of org file opened in current buffer.
@@ -29,7 +29,8 @@ will return \"this is title\" if OPTION is \"TITLE\""
 
 (defun org2gibb--get-tags ()
   ""
-  (org2gibb--read-org-option "TAGS"))
+  (let ((tags (org2gibb--read-org-option "TAGS")))
+    (apply #'vector (split-string tags))))
 
 (defun org2gibb ()
   (interactive)
