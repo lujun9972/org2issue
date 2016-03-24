@@ -8,8 +8,6 @@
 (defvar org2issue-blog-repo "lujun9972.github.com"
   "")
 
-(defvar org2issue-api (gh-issues-api "api")
-  "")
 (defun org2issue--read-org-option (option)
   "Read option value of org file opened in current buffer.
 e.g:
@@ -30,17 +28,19 @@ will return \"this is title\" if OPTION is \"TITLE\""
 (defun org2issue--get-tags ()
   ""
   (let ((tags (org2issue--read-org-option "TAGS")))
-    (apply #'vector (split-string tags))))
+    (when tags
+      (apply #'vector (split-string tags)))))
 
 (defun org2issue ()
   (interactive)
-  (let* ((tags (org2issue--get-tags))
+  (let* ((api (gh-issues-api "api"))
+	 (tags (org2issue--get-tags))
          (title (org2issue--get-title))
          (body (org-export-as 'gfm))
          (issue (make-instance 'gh-issues-issue
                                :title title
                                :body body
                                :labels tags)))
-    (gh-issues-issue-new org2issue-api org2issue-user org2issue-blog-repo issue)))
+    (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue)))
 
 (provide 'org2issue)
