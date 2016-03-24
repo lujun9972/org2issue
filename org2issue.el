@@ -32,7 +32,7 @@ will return \"this is title\" if OPTION is \"TITLE\""
   (let ((tags (org2issue--read-org-option "TAGS")))
     (apply #'vector (split-string tags))))
 
-(defun org2gibb ()
+(defun org2issue ()
   (interactive)
   (let* ((tags (org2issue--get-tags))
          (title (org2issue--get-title))
