@@ -66,11 +66,18 @@
 (require 'gh-issues)
 (require 'ox-gfm)
 
-(defvar org2issue-user "lujun9972"
-  "Github username")
+(defgroup org2issue nil
+  "org to github issue based blog")
 
-(defvar org2issue-blog-repo "lujun9972.github.com"
-  "The blog repository name")
+(defcustom org2issue-user user-login-name
+  "Github username"
+  :group 'org2issue
+  :type 'string)
+
+(defcustom org2issue-blog-repo "blog"
+  "The blog repository name"
+  :group 'org2issue
+  :type 'string)
 
 (defun org2issue--read-org-option (option)
   "Read option value of org file opened in current buffer.
@@ -120,21 +127,22 @@ will return \"this is title\" if OPTION is \"TITLE\""
 ;;;###autoload
 (defun org2issue ()
   (interactive)
-  (let* ((orign-json-encode-string #'json-encode-string)
-         (api (gh-issues-api "api"))
-         (tags (org2issue--get-tags))
-         (title (org2issue--get-title))
-         (body (org-export-as 'gfm))
-         (issue (make-instance 'gh-issues-issue
-                               :title title
-                               :body body
-                               :labels tags)))
+  (let ((api (gh-issues-api "api"))
+        (tags (org2issue--get-tags))
+        (title (org2issue--get-title))
+        (body (org-export-as 'gfm))
+        response)
     (unwind-protect 
-        (progn
+        (let ((issue (make-instance 'gh-issues-issue
+                                    :title title
+                                    :body body
+                                    :labels tags)))
           (when (version<= "25.0" emacs-version)
-            (fset 'json-encode-string #'org2issue--json-encode-string))
-          (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue))
-      (fset 'json-encode-string orign-json-encode-string))))
+            (advice-add 'json-encode-string :override #'org2issue--json-encode-string))
+          (setq response (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue)))
+      (when (advice-member-p #'org2issue--json-encode-string 'json-encode-string)
+        (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
+    (message "response: %s" (oref (oref response data) url))))
 
 (provide 'org2issue)
 ;;; org2issue.el ends here
