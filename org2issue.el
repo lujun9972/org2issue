@@ -95,18 +95,47 @@ will return \"this is title\" if OPTION is \"TITLE\""
     (when tags
       (apply #'vector (split-string tags)))))
 
+(defun org2issue--json-encode-string (string)
+  "Patch for json.el in emacs25"
+  (let ((l (length string))
+        (start 0)
+        res mb)
+    ;; Only escape quotation mark, backslash and the control
+    ;; characters U+0000 to U+001F (RFC 4627, ECMA-404).
+    (while (setq mb (string-match "[\"\\[:cntrl:]]\\|\\cc" string start))
+      (let* ((c (aref string mb))
+             (special (rassq c json-special-chars)))
+        (push (substring string start mb) res)
+        (push (if special
+                  ;; Special JSON character (\n, \r, etc.).
+                  (string ?\\ (car special))
+                ;; Fallback: UCS code point in \uNNNN form.
+                (format "\\u%04x" c))
+              res)
+        (setq start (1+ mb))))
+    (push (substring string start l) res)
+    (push "\"" res)
+    (apply #'concat "\"" (nreverse res))))
+
 ;;;###autoload
 (defun org2issue ()
   (interactive)
-  (let* ((api (gh-issues-api "api"))
-	 (tags (org2issue--get-tags))
+  (let* ((orign-json-encode-string #'json-encode-string)
+         (api (gh-issues-api "api"))
+         (tags (org2issue--get-tags))
          (title (org2issue--get-title))
          (body (org-export-as 'gfm))
          (issue (make-instance 'gh-issues-issue
                                :title title
                                :body body
                                :labels tags)))
-    (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue)))
+    (unwind-protect 
+        (progn
+          (when (version<= "25.0" emacs-version)
+            (fset 'json-encode-string #'org2issue--json-encode-string))
+          (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue))
+      (fset 'json-encode-string orign-json-encode-string))))
 
 (provide 'org2issue)
 ;;; org2issue.el ends here
+
