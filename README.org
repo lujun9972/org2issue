@@ -1,5 +1,7 @@
 * org2issue
-org to github issue based blog
+export org to github issue 
+
+of course you can use it to write github issue based blog 
 * Usage
 1. specify ~org2issue-user~ as your github username
 2. specify ~org2issue-blog-repo~ as the blog repository name
