@@ -148,8 +148,8 @@ will return \"this is title\" if OPTION is \"TITLE\""
     (apply #'concat "\"" (nreverse res))))
 
 ;;;###autoload
-(defun org2issue ()
-  (interactive)
+(defun org2issue (&optional delete)
+  (interactive "P")
   (let ((api (gh-issues-api "api"))
         (tags (org2issue--get-tags))
         (title (org2issue--get-title))
@@ -161,7 +161,7 @@ will return \"this is title\" if OPTION is \"TITLE\""
           (when (version<= "25.0" emacs-version)
             (advice-add 'json-encode-string :override #'org2issue--json-encode-string))
           (setq response-data (if orign-issue-data
-                                  (org2issue-update api title body tags orign-issue-data)
+                                  (org2issue-update api title body tags orign-issue-data delete)
                                 (org2issue-add api title body tags))))
       (when (advice-member-p #'org2issue--json-encode-string 'json-encode-string)
         (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
@@ -179,12 +179,14 @@ will return \"this is title\" if OPTION is \"TITLE\""
                               :labels tags)))
     (oref (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue) data)))
 
-(defun org2issue-update (api title body tags orign-issue-data)
+(defun org2issue-update (api title body tags orign-issue-data &optional delete)
   (let ((issue (make-instance 'gh-issues-issue
                               :title title
                               :body body
                               :labels tags
-                              :state 'open))
+                              :state (if delete
+                                         'closed
+                                       'open)))
         (org2issue-user (nth 0 orign-issue-data))
         (org2issue-blog-repo (nth 1 orign-issue-data))
         (org2issue-number (string-to-number (nth 2 orign-issue-data))))
