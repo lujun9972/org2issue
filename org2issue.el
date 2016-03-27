@@ -166,7 +166,8 @@ will return \"this is title\" if OPTION is \"TITLE\""
         (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
     (let ((html-url (oref response-data html-url))
           (number (oref response-data number)))
-      (org2issue--write-org-option "ORG2ISSUE-ISSUE" (format "%s %s %d" org2issue-user org2issue-blog-repo number))
+      (unless orign-issue-data
+        (org2issue--write-org-option "ORG2ISSUE-ISSUE" (format "%s %s %d" org2issue-user org2issue-blog-repo number)))
       (when org2issue-browse-issue
         (browse-url html-url)))))
 
