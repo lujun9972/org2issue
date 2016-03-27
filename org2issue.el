@@ -1,4 +1,4 @@
-;;; org2issue.el --- org to github issue based blog
+;;; org2issue.el --- export org to github issue
 
 ;; Copyright (C) 2004-2016 Free Software Foundation, Inc.
 
@@ -38,6 +38,7 @@
 ;; 1. specify ~org2issue-user~ as your github username
 ;; 2. specify ~org2issue-blog-repo~ as the blog repository name
 ;; 3. open the org file and execute =M-x org2issue=
+;; 4. if ~org2issue-browse-issue~ is non-nil, the new/updated issue will be browsed by =browse-url=
 
 ;; BUGS
 ;; + It can't add issue labels.
