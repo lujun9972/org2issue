@@ -173,7 +173,6 @@ will return \"this is title\" if OPTION is \"TITLE\""
         (browse-url html-url)))))
 
 (defun org2issue-add (api title body tags)
-  (interactive)
   (let ((issue (make-instance 'gh-issues-issue
                               :title title
                               :body body
@@ -181,7 +180,6 @@ will return \"this is title\" if OPTION is \"TITLE\""
     (oref (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue) data)))
 
 (defun org2issue-update (api title body tags orign-issue-data)
-  (interactive)
   (let ((issue (make-instance 'gh-issues-issue
                               :title title
                               :body body
