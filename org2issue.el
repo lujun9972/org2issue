@@ -40,7 +40,6 @@
 ;; 3. open the org file and execute =M-x org2issue=
 
 ;; BUGS
-;; + It can't handle chinese properly in Emacs25.x
 ;; + It can't add issue labels.
 
 ;; To add issue labels. You have to redefine the method `gh-issues-issue-req-to-update` as below:
@@ -79,6 +78,11 @@
   :group 'org2issue
   :type 'string)
 
+(defcustom org2issue-browse-issue t
+  "Browse the new issue or not"
+  :group 'org2issue
+  :type 'boolean)
+
 (defun org2issue--read-org-option (option)
   "Read option value of org file opened in current buffer.
 e.g:
@@ -101,6 +105,24 @@ will return \"this is title\" if OPTION is \"TITLE\""
   (let ((tags (org2issue--read-org-option "TAGS")))
     (when tags
       (apply #'vector (split-string tags)))))
+
+(defun org2issue--write-org-option (option value)
+  "Write option and value to org file opened in current buffer. "
+  (let ((case-fold-search t)
+        (match-regexp (org-make-options-regexp `(,option))))
+    (save-excursion
+      (goto-char (point-min))
+      (if (re-search-forward match-regexp nil t)
+          (setf (buffer-substring (progn
+                                    (search-backward ":")
+                                    (+ 1 (point)))
+                                  (progn
+                                    (end-of-line)
+                                    (point)))
+                value)
+        (goto-char (point-min))
+        (insert (concat "#+" option ": " value "\n"))))))
+
 
 (defun org2issue--json-encode-string (string)
   "Patch for json.el in emacs25"
@@ -131,18 +153,42 @@ will return \"this is title\" if OPTION is \"TITLE\""
         (tags (org2issue--get-tags))
         (title (org2issue--get-title))
         (body (org-export-as 'gfm))
-        response)
+        (orign-issue-data (split-string (org2issue--read-org-option "ORG2ISSUE-ISSUE")))
+        response-data)
     (unwind-protect 
-        (let ((issue (make-instance 'gh-issues-issue
-                                    :title title
-                                    :body body
-                                    :labels tags)))
+        (progn
           (when (version<= "25.0" emacs-version)
             (advice-add 'json-encode-string :override #'org2issue--json-encode-string))
-          (setq response (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue)))
+          (setq response-data (if orign-issue-data
+                                  (org2issue-update api title body tags orign-issue-data)
+                                (org2issue-add api title body tags))))
       (when (advice-member-p #'org2issue--json-encode-string 'json-encode-string)
         (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
-    (message "response: %s" (oref (oref response data) url))))
+    (let ((html-url (oref response-data html-url))
+          (number (oref response-data number)))
+      (org2issue--write-org-option "ORG2ISSUE-ISSUE" (format "%s %s %d" org2issue-user org2issue-blog-repo number))
+      (when org2issue-browse-issue
+        (browse-url html-url)))))
+
+(defun org2issue-add (api title body tags)
+  (interactive)
+  (let ((issue (make-instance 'gh-issues-issue
+                              :title title
+                              :body body
+                              :labels tags)))
+    (oref (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue) data)))
+
+(defun org2issue-update (api title body tags orign-issue-data)
+  (interactive)
+  (let ((issue (make-instance 'gh-issues-issue
+                              :title title
+                              :body body
+                              :labels tags
+                              :state 'open))
+        (org2issue-user (nth 0 orign-issue-data))
+        (org2issue-blog-repo (nth 1 orign-issue-data))
+        (org2issue-number (string-to-number (nth 2 orign-issue-data))))
+    (oref (gh-issues-issue-update api org2issue-user org2issue-blog-repo org2issue-number issue) data)))
 
 (provide 'org2issue)
 ;;; org2issue.el ends here
