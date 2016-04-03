@@ -154,14 +154,14 @@ will return \"this is title\" if OPTION is \"TITLE\""
         (tags (org2issue--get-tags))
         (title (org2issue--get-title))
         (body (org-export-as 'gfm))
-        (orign-issue-data (split-string (org2issue--read-org-option "ORG2ISSUE-ISSUE")))
+        (orign-issue-data (org2issue--read-org-option "ORG2ISSUE-ISSUE"))
         response-data)
     (unwind-protect 
         (progn
           (when (version<= "25.0" emacs-version)
             (advice-add 'json-encode-string :override #'org2issue--json-encode-string))
           (setq response-data (if orign-issue-data
-                                  (org2issue-update api title body tags orign-issue-data delete)
+                                  (org2issue-update api title body tags (split-string orign-issue-data) delete)
                                 (org2issue-add api title body tags))))
       (when (advice-member-p #'org2issue--json-encode-string 'json-encode-string)
         (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
