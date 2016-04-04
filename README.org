@@ -9,6 +9,8 @@ so you can use org to write github issue based blog
 4. execute =M-x org2issue= will add/update the issue
 5. execute =C-u M-x org2issue= will close the issue
 6. if ~org2issue-browse-issue~ is non-nil, the new/updated issue will be browsed by =browse-url=
+7. if specified ~org2issue-update-file~, org2issue will insert the issue-url into the file 
+8. usually, ~org2issue-update-file~ is the absolote path to =README.org= in the local blog repo directory
 * BUGS
 + It can't add issue labels.
 
