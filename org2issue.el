@@ -84,6 +84,12 @@
   :group 'org2issue
   :type 'boolean)
 
+(defcustom org2issue-update-file "~/github/blog/README.org"
+  "When set, will insert the issue-url into this file which is recommand to be a absolote path"
+  :group 'org2issue
+  :type '(choice (file :tag "Insert issue-url into which file")
+                 (const nil :tag "Do't insert issue-url into any file")))
+
 (defun org2issue--read-org-option (option)
   "Read option value of org file opened in current buffer.
 e.g:
@@ -124,6 +130,25 @@ will return \"this is title\" if OPTION is \"TITLE\""
         (goto-char (point-min))
         (insert (concat "#+" option ": " value "\n"))))))
 
+(defun org2issue--update-readme (issue)
+  (cl-assert (gh-issues-issue-p issue) t "should only accept gh-issues-issue object")
+  (let ((html-url (oref issue html-url))
+        (state (oref issue state))
+        (title (oref issue title)))
+    (when org2issue-update-file
+      (with-temp-file org2issue-update-file
+        (when (file-exists-p org2issue-update-file)
+          (insert-file-contents org2issue-update-file)
+          (goto-char (point-min))
+          (when (search-forward-regexp (format "\\[\\[%s\\]\\[.+\\]\\]" (regexp-quote html-url)) nil t)
+            (beginning-of-line)
+            (kill-line 2)))
+        (when (string-equal "open" state)
+          (goto-char (point-min))
+          (insert (format "+ [[%s][%s]]" html-url title))
+          (newline)
+          (newline))))))
+
 
 (defun org2issue--json-encode-string (string)
   "Patch for json.el in emacs25"
@@ -155,20 +180,21 @@ will return \"this is title\" if OPTION is \"TITLE\""
         (title (org2issue--get-title))
         (body (org-export-as 'gfm))
         (orign-issue-data (org2issue--read-org-option "ORG2ISSUE-ISSUE"))
-        response-data)
+        response-issue)
     (unwind-protect 
         (progn
           (when (version<= "25.0" emacs-version)
             (advice-add 'json-encode-string :override #'org2issue--json-encode-string))
-          (setq response-data (if orign-issue-data
+          (setq response-issue (if orign-issue-data
                                   (org2issue-update api title body tags (split-string orign-issue-data) delete)
                                 (org2issue-add api title body tags))))
       (when (advice-member-p #'org2issue--json-encode-string 'json-encode-string)
         (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
-    (let ((html-url (oref response-data html-url))
-          (number (oref response-data number)))
+    (let ((html-url (oref response-issue html-url))
+          (number (oref response-issue number)))
       (unless orign-issue-data
         (org2issue--write-org-option "ORG2ISSUE-ISSUE" (format "%s %s %d" org2issue-user org2issue-blog-repo number)))
+      (org2issue--update-readme response-issue)
       (when org2issue-browse-issue
         (browse-url html-url)))))
 
