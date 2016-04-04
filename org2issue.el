@@ -149,6 +149,19 @@ will return \"this is title\" if OPTION is \"TITLE\""
           (newline)
           (newline))))))
 
+(defun org2issue-regenerate-readme ()
+  "Fetch issue list and use them to rewrite `org2issue-update-file'"
+  (interactive)
+  ;; cleanup origin file contents
+  (with-temp-file org2issue-update-file)
+  ;; rewrite file contents
+  (let* ((api (gh-issues-api "api"))
+         (issues (reverse (oref (gh-issues-issue-list api org2issue-user org2issue-blog-repo)
+                                data)))
+         (open-issues (remove-if (lambda (issue)
+                                   (string= "close" (oref issue state)))
+                                 issues)))
+    (mapc #'org2issue--update-readme open-issues)))
 
 (defun org2issue--json-encode-string (string)
   "Patch for json.el in emacs25"
