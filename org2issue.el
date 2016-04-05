@@ -130,24 +130,25 @@ will return \"this is title\" if OPTION is \"TITLE\""
         (goto-char (point-min))
         (insert (concat "#+" option ": " value "\n"))))))
 
-(defun org2issue--update-readme (issue)
+(defun org2issue--update-readme (&rest issues)
   (when org2issue-update-file
-    (cl-assert (gh-issues-issue-p issue) t "should only accept gh-issues-issue object")
-    (let ((html-url (oref issue html-url))
-          (state (oref issue state))
-          (title (oref issue title)))
-      (with-temp-file org2issue-update-file
-        (when (file-exists-p org2issue-update-file)
-          (insert-file-contents org2issue-update-file)
+    (with-temp-file org2issue-update-file
+      (when (file-exists-p org2issue-update-file)
+        (insert-file-contents org2issue-update-file))
+      (dolist (issue issues)
+        (cl-assert (gh-issues-issue-p issue) t "should only accept gh-issues-issue object")
+        (let ((html-url (oref issue html-url))
+              (state (oref issue state))
+              (title (oref issue title)))
           (goto-char (point-min))
           (when (search-forward-regexp (format "\\[\\[%s\\]\\[.+\\]\\]" (regexp-quote html-url)) nil t)
             (beginning-of-line)
-            (kill-line 2)))
-        (when (string-equal "open" state)
-          (goto-char (point-min))
-          (insert (format "+ [[%s][%s]]" html-url title))
-          (newline)
-          (newline))))))
+            (kill-line 2))
+          (when (string-equal "open" state)
+            (goto-char (point-min))
+            (insert (format "+ [[%s][%s]]" html-url title))
+            (newline)
+            (newline)))))))
 
 (defun org2issue-regenerate-readme ()
   "Fetch issue list and use them to rewrite `org2issue-update-file'"
@@ -161,7 +162,7 @@ will return \"this is title\" if OPTION is \"TITLE\""
          (open-issues (remove-if (lambda (issue)
                                    (string= "close" (oref issue state)))
                                  issues)))
-    (mapc #'org2issue--update-readme open-issues)))
+    (apply #'org2issue--update-readme open-issues)))
 
 (defun org2issue--json-encode-string (string)
   "Patch for json.el in emacs25"
