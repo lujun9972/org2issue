@@ -1,0 +1,46 @@
+* 什么是org2issue
+org2issue是一个将org导出为github issue的脚本, 实现它的初衷是为了用org来写github issue based blog
+
+* 使用方法
+1. 设置变量 ~org2issue-user~ 为github用户名
+
+2. 设置变量 ~org2issue-blog-repo~ 为博客仓库名
+ 
+3. 打开org文件
+ 
+4. 执行 =M-x org2issue= 会根据情况新增一篇issue或者更新已有的issue.
+
+   + 若新增issue,则会在org头部增加一个 "#+ORG2ISSUE-ISSUE" 标志,用于记录该org对应的issue地址
+
+   + 判断是新增issue还是更新issue的标准为是否有 "#+ORG2ISSUE-ISSUE" 标志,因此该标志不要轻易删除
+ 
+5. 在已发布过的org文件内执行 =C-u M-x org2issue= 会关闭相应issue
+ 
+6. 若设置 ~org2issue-browse-issue~ 为非nil值,则新增/更新issue后,会自动调用 =browse-url= 函数来浏览该issue
+ 
+7. 可以设置 ~org2issue-update-file~ 为本地博客仓库的README文件地址(记得使用绝对路径), 设置之后org2issue会根据 ~org2issue-update-item-format~ 的格式写入内容
+
+8. ~org2issue-update-item-format~ 中的${xxxx}会被替换成issue的相应属性(具体支持哪些属性,参见 =gh-issues-issue= 中的slot)
+ 
+ 
+10. 执行 =M-x org2issue-regenerate-readme= 会获取仓库中所有issue的列表,并以此重写 ~org2issue-update-file~ 的内容 
+* BUGS
++ 目前的gh库不支持添加issue label.
+
+  要想能够添加issue label. 需要重写定义 =gh-issues-issue-req-to-update= 方法:
+  #+BEGIN_SRC emacs-lisp
+    (defmethod gh-issues-issue-req-to-update ((req gh-issues-issue))
+      (let ((assignee (oref req assignee))
+            (labels (oref req labels))
+            (milestone (oref req milestone))
+            (to-update `(("title" . ,(oref req title))
+                         ("state" . ,(oref req state))
+                         ("body" . ,(oref req body)))))
+
+        (when labels (nconc to-update `(("labels" . ,(oref req labels) ))))
+        (when milestone
+          (nconc to-update `(("milestone" . ,(oref milestone number)))))
+        (when assignee
+          (nconc to-update `(("assignee" . ,(oref assignee login) ))))
+        to-update))
+  #+END_SRC
