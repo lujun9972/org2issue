@@ -92,12 +92,14 @@
                  (const nil :tag "Do't insert issue-url into any file")))
 
 (defcustom org2issue-update-item-format "+ [[${html-url}][${title}]]"
-  "Set the content format of `org2issue-update-file'. It should contain \"${html-url}\""
+  "Set the content format of `org2issue-update-file'. It should contain \"${html-url}\" and not contain newline"
   :group 'org2issue
   :type 'string
   :set (lambda (item val)
          (unless (s-contains-p "${html-url}" val)
            (error "The format should contain \"$(html-url)\""))
+         (when (s-contains-p "\n" val)
+           (error "The format should not contain newline"))
          (set-default item val)))
 
 (defun org2issue--read-org-option (option)
