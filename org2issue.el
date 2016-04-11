@@ -6,7 +6,7 @@
 ;; Created: 2016-03-24
 ;; Version: 0.1
 ;; Keywords: convenience, github, org
-;; Package-Requires: ((org "8.0") (emacs "24.4") (ox-gfm "0.1") (gh "0.1") (s "20160405.321"))
+;; Package-Requires: ((org "8.0") (emacs "24.4") (ox-gfm "0.1") (gh "0.1") (s "20160405.920"))
 ;; URL: https://github.com/lujun9972/org2issue
 
 ;; This file is NOT part of GNU Emacs.
