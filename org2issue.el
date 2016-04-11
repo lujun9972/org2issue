@@ -6,7 +6,7 @@
 ;; Created: 2016-03-24
 ;; Version: 0.1
 ;; Keywords: convenience, github, org
-;; Package-Requires: ((org "8.0") (emacs "24.4") (ox-gfm "0.1") (gh "0.1"))
+;; Package-Requires: ((org "8.0") (emacs "24.4") (ox-gfm "0.1") (gh "0.1") (s "20160405.321"))
 ;; URL: https://github.com/lujun9972/org2issue
 
 ;; This file is NOT part of GNU Emacs.
@@ -65,6 +65,7 @@
 (require 'gh)
 (require 'gh-issues)
 (require 'ox-gfm)
+(require 's)
 
 (defgroup org2issue nil
   "org to github issue based blog")
@@ -89,6 +90,15 @@
   :group 'org2issue
   :type '(choice (file :tag "Insert issue-url into which file")
                  (const nil :tag "Do't insert issue-url into any file")))
+
+(defcustom org2issue-update-item-format "+ [[${html-url}][${title}]]"
+  "Set the content format of `org2issue-update-file'. It should contain \"${html-url}\""
+  :group 'org2issue
+  :type 'string
+  :set (lambda (item val)
+         (unless (s-contains-p "${html-url}" val)
+           (error "The format should contain \"$(html-url)\""))
+         (set-default item val)))
 
 (defun org2issue--read-org-option (option)
   "Read option value of org file opened in current buffer.
@@ -138,15 +148,14 @@ will return \"this is title\" if OPTION is \"TITLE\""
       (dolist (issue issues)
         (cl-assert (gh-issues-issue-p issue) t "should only accept gh-issues-issue object")
         (let ((html-url (oref issue html-url))
-              (state (oref issue state))
-              (title (oref issue title)))
+              (state (oref issue state)))
           (goto-char (point-min))
-          (when (search-forward-regexp (format "\\[\\[%s\\]\\[.+\\]\\]" (regexp-quote html-url)) nil t)
+          (when (search-forward-regexp (format "%s[^0-9]" (regexp-quote html-url)) nil t)
             (beginning-of-line)
             (kill-line 2))
           (when (string-equal "open" state)
             (goto-char (point-min))
-            (insert (format "+ [[%s][%s]]" html-url title))
+            (insert (s-format org2issue-update-item-format 'oref issue))
             (newline)
             (newline)))))))
 
