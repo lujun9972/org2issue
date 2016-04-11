@@ -102,6 +102,11 @@
            (error "The format should not contain newline"))
          (set-default item val)))
 
+(defcustom org2issue-after-post-issue-functions nil
+  "Functions run after post or update an issue. The functions are run with one argument, the returned issue"
+  :group 'org2issue
+  :type 'hook)
+
 (defun org2issue--read-org-option (option)
   "Read option value of org file opened in current buffer.
 e.g:
@@ -212,7 +217,8 @@ will return \"this is title\" if OPTION is \"TITLE\""
             (advice-add 'json-encode-string :override #'org2issue--json-encode-string))
           (setq response-issue (if orign-issue-data
                                    (org2issue-update api title body tags (split-string orign-issue-data) delete)
-                                 (org2issue-add api title body tags))))
+                                 (org2issue-add api title body tags)))
+          (run-hook-with-args 'org2issue-after-post-issue-functions response-issue))
       (when (advice-member-p #'org2issue--json-encode-string 'json-encode-string)
         (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
     (let ((html-url (oref response-issue html-url))
