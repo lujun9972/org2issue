@@ -31,7 +31,7 @@
 
 ;;; Commentary:
 
-;; org2issue is a little tool that use eww to preview current org-file when save automatically 
+;; org2issue is a little tool that export org to github issue
 
 ;; Quick start:
 
@@ -65,6 +65,7 @@
 (require 'gh)
 (require 'gh-issues)
 (require 'ox-gfm)
+(require 's)
 
 (defgroup org2issue nil
   "org to github issue based blog")
