@@ -6,7 +6,7 @@
 ;; Created: 2016-03-24
 ;; Version: 0.1
 ;; Keywords: convenience, github, org
-;; Package-Requires: ((org "8.0") (emacs "24.4") (ox-gfm "0.1") (gh "0.1"))
+;; Package-Requires: ((org "8.0") (emacs "24.4") (ox-gfm "0.1") (gh "0.1") (s "20160405.920"))
 ;; URL: https://github.com/lujun9972/org2issue
 
 ;; This file is NOT part of GNU Emacs.
@@ -91,6 +91,22 @@
   :type '(choice (file :tag "Insert issue-url into which file")
                  (const nil :tag "Do't insert issue-url into any file")))
 
+(defcustom org2issue-update-item-format "+ [[${html-url}][${title}]]"
+  "Set the content format of `org2issue-update-file'. It should contain \"${html-url}\" and not contain newline"
+  :group 'org2issue
+  :type 'string
+  :set (lambda (item val)
+         (unless (s-contains-p "${html-url}" val)
+           (error "The format should contain \"$(html-url)\""))
+         (when (s-contains-p "\n" val)
+           (error "The format should not contain newline"))
+         (set-default item val)))
+
+(defcustom org2issue-after-post-issue-functions nil
+  "Functions run after post or update an issue. The functions are run with one argument, the returned issue"
+  :group 'org2issue
+  :type 'hook)
+
 (defun org2issue--read-org-option (option)
   "Read option value of org file opened in current buffer.
 e.g:
@@ -139,15 +155,14 @@ will return \"this is title\" if OPTION is \"TITLE\""
       (dolist (issue issues)
         (cl-assert (gh-issues-issue-p issue) t "should only accept gh-issues-issue object")
         (let ((html-url (oref issue html-url))
-              (state (oref issue state))
-              (title (oref issue title)))
+              (state (oref issue state)))
           (goto-char (point-min))
-          (when (search-forward-regexp (format "\\[\\[%s\\]\\[.+\\]\\]" (regexp-quote html-url)) nil t)
+          (when (search-forward-regexp (format "%s[^0-9]" (regexp-quote html-url)) nil t)
             (beginning-of-line)
             (kill-line 2))
           (when (string-equal "open" state)
             (goto-char (point-min))
-            (insert (format "+ [[%s][%s]]" html-url title))
+            (insert (s-format org2issue-update-item-format 'oref issue))
             (newline)
             (newline)))))))
 
@@ -202,7 +217,8 @@ will return \"this is title\" if OPTION is \"TITLE\""
             (advice-add 'json-encode-string :override #'org2issue--json-encode-string))
           (setq response-issue (if orign-issue-data
                                    (org2issue-update api title body tags (split-string orign-issue-data) delete)
-                                 (org2issue-add api title body tags))))
+                                 (org2issue-add api title body tags)))
+          (run-hook-with-args 'org2issue-after-post-issue-functions response-issue))
       (when (advice-member-p #'org2issue--json-encode-string 'json-encode-string)
         (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
     (let ((html-url (oref response-issue html-url))
