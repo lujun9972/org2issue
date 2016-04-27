@@ -1,6 +1,6 @@
 ;;; org2issue.el --- export org to github issue
 
-;; Copyright (C) 2004-2016 Free Software Foundation, Inc.
+;; Copyright (C) 2004-2016 DarkSun <lujun9972@gmail.com>.
 
 ;; Author: DarkSun <lujun9972@gmail.com>
 ;; Created: 2016-03-24
