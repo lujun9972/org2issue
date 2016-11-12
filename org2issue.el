@@ -70,6 +70,11 @@
 (defgroup org2issue nil
   "org to github issue based blog")
 
+(defcustom org2issue-backend "github"
+  "Backend used to publish issue"
+  :group 'org2issue
+  :type 'string)
+
 (defcustom org2issue-user user-login-name
   "Github username"
   :group 'org2issue
@@ -148,36 +153,37 @@ will return \"this is title\" if OPTION is \"TITLE\""
         (insert (concat "#+" option ": " value "\n"))))))
 
 (defun org2issue--update-readme (&rest issues)
-  (when org2issue-update-file
-    (with-temp-file org2issue-update-file
-      (when (file-exists-p org2issue-update-file)
-        (insert-file-contents org2issue-update-file))
-      (dolist (issue issues)
-        (cl-assert (gh-issues-issue-p issue) t "should only accept gh-issues-issue object")
-        (let ((html-url (oref issue html-url))
-              (state (oref issue state)))
-          (goto-char (point-min))
-          (when (search-forward-regexp (format "%s[^0-9]" (regexp-quote html-url)) nil t)
-            (beginning-of-line)
-            (kill-line 2))
-          (when (string-equal "open" state)
-            (goto-char (point-min))
-            (insert (s-format org2issue-update-item-format 'oref issue))
-            (newline)
-            (newline)))))))
+  (let ((issue2string-fn (intern (format "org2issue-%s-issue-to-string" org2issue-backend)))
+        (issue2url-fn (intern (format "org2issue-%s-issue-to-url" org2issue-backend))))
+    (when org2issue-update-file
+      (with-temp-file org2issue-update-file
+        (when (file-exists-p org2issue-update-file)
+          (insert-file-contents org2issue-update-file))
+        (dolist (issue issues)
+          (let ((issue-url (funcall issue2url-fn issue))
+                (issue-string (funcall issue2string-fn issue)))
+            (when (search-forward-regexp (format "%s[^0-9]" (regexp-quote issue-url)) nil t)
+              (beginning-of-line)
+              (kill-line 2))
+            (when issue-string
+              (goto-char (point-min))
+              (insert issue-string)
+              (newline)
+              (newline))))))))
 
+(defun org2issue-require-backend (backend)
+  (require (intern (format "org2issue-%s" backend))))
+
+;;;###autoload
 (defun org2issue-regenerate-readme ()
   "Fetch issue list and use them to rewrite `org2issue-update-file'"
   (interactive)
+  (org2issue-require-backend org2issue-backend)
   ;; cleanup origin file contents
   (with-temp-file org2issue-update-file)
   ;; rewrite file contents
-  (let* ((api (gh-issues-api "api"))
-         (issues (reverse (oref (gh-issues-issue-list api org2issue-user org2issue-blog-repo)
-                                data)))
-         (open-issues (remove-if (lambda (issue)
-                                   (string= "close" (oref issue state)))
-                                 issues)))
+  (let* ((get-open-issues-fn (intern (format "org2issue-%s-get-open-issues" org2issue-backend)))
+         (open-issues (funcall get-open-issues-fn)))
     (apply #'org2issue--update-readme open-issues)))
 
 (defun org2issue--json-encode-string (string)
@@ -205,19 +211,25 @@ will return \"this is title\" if OPTION is \"TITLE\""
 ;;;###autoload
 (defun org2issue (&optional delete)
   (interactive "P")
-  (let ((api (gh-issues-api "api"))
-        (tags (org2issue--get-tags))
+  (org2issue-require-backend org2issue-backend)
+  (let ((tags (org2issue--get-tags))
         (title (org2issue--get-title))
         (body (org-export-as 'gfm))
         (orign-issue-data (org2issue--read-org-option "ORG2ISSUE-ISSUE"))
+        (add-issue-fn (intern (format "org2issue-%s-add" org2issue-backend)))
+        (update-issue-fn (intern (format "org2issue-%s-update" org2issue-backend)))
+        (delete-issue-fn (intern (format "org2issue-%s-delete" org2issue-backend)))
         response-issue)
     (unwind-protect 
         (progn
           (when (version<= "25.0" emacs-version)
             (advice-add 'json-encode-string :override #'org2issue--json-encode-string))
-          (setq response-issue (if orign-issue-data
-                                   (org2issue-update api title body tags (split-string orign-issue-data) delete)
-                                 (org2issue-add api title body tags)))
+          (setq response-issue (cond (delete
+                                      (funcall delete-issue-fn title body tags orign-issue-data))
+                                     (orign-issue-data
+                                      (funcall update-issue-fn title body tags orign-issue-data))
+                                     (t
+                                      (funcall add-issue-fn title body tags))))
           (run-hook-with-args 'org2issue-after-post-issue-functions response-issue))
       (when (advice-member-p #'org2issue--json-encode-string 'json-encode-string)
         (advice-remove 'json-encode-string #'org2issue--json-encode-string)))
@@ -229,25 +241,9 @@ will return \"this is title\" if OPTION is \"TITLE\""
       (when org2issue-browse-issue
         (browse-url html-url)))))
 
-(defun org2issue-add (api title body tags)
-  (let ((issue (make-instance 'gh-issues-issue
-                              :title title
-                              :body body
-                              :labels tags)))
-    (oref (gh-issues-issue-new api org2issue-user org2issue-blog-repo issue) data)))
 
-(defun org2issue-update (api title body tags orign-issue-data &optional delete)
-  (let ((issue (make-instance 'gh-issues-issue
-                              :title title
-                              :body body
-                              :labels tags
-                              :state (if delete
-                                         'closed
-                                       'open)))
-        (org2issue-user (nth 0 orign-issue-data))
-        (org2issue-blog-repo (nth 1 orign-issue-data))
-        (org2issue-number (string-to-number (nth 2 orign-issue-data))))
-    (oref (gh-issues-issue-update api org2issue-user org2issue-blog-repo org2issue-number issue) data)))
+
+
 
 (provide 'org2issue)
 ;;; org2issue.el ends here
